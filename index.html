@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Distraction Ledger Ultimate</title>
+<style>
+    /* --- CSS VARIABLES & THEME ENGINE --- */
+    :root {
+        --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --font-mono: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", monospace;
+        --radius: 12px;
+        --shadow: 0 4px 12px rgba(0,0,0,0.08);
+        --transition: 0.25s ease;
+    }
+
+    /* THEME DEFINITIONS */
+    [data-theme="light"] { --bg: #f4f6f8; --surf: #ffffff; --txt: #2d3436; --sub: #636e72; --border: #dfe6e9; --prim: #0984e3; --acc: #74b9ff; --danger: #d63031; }
+    [data-theme="dark"] { --bg: #121212; --surf: #1e1e1e; --txt: #e0e0e0; --sub: #a0a0a0; --border: #333; --prim: #74b9ff; --acc: #0984e3; --danger: #ff7675; }
+    [data-theme="midnight"] { --bg: #0f172a; --surf: #1e293b; --txt: #cbd5e1; --sub: #64748b; --border: #334155; --prim: #38bdf8; --acc: #0284c7; --danger: #f87171; }
+    [data-theme="forest"] { --bg: #edf7ed; --surf: #ffffff; --txt: #1b4d3e; --sub: #4a7c59; --border: #c8e6c9; --prim: #2e7d32; --acc: #66bb6a; --danger: #c62828; }
+    [data-theme="hacker"] { --bg: #000000; --surf: #111111; --txt: #00ff00; --sub: #008f11; --border: #003300; --prim: #00ff00; --acc: #00cc00; --danger: #ff0000; --font-main: var(--font-mono); }
+    [data-theme="cyberpunk"] { --bg: #2b213a; --surf: #241b35; --txt: #f0f; --sub: #0ff; --border: #f0f; --prim: #fcee0a; --acc: #0ff; --danger: #ff003c; }
+    [data-theme="nord"] { --bg: #2e3440; --surf: #3b4252; --txt: #eceff4; --sub: #d8dee9; --border: #4c566a; --prim: #88c0d0; --acc: #81a1c1; --danger: #bf616a; }
+    [data-theme="paper"] { --bg: #f5f5dc; --surf: #fffbf0; --txt: #3d3d3d; --sub: #8c8c8c; --border: #dcdcdc; --prim: #4a4a4a; --acc: #d4d4d4; --danger: #8b0000; }
+    [data-theme="ocean"] { --bg: #e0f7fa; --surf: #ffffff; --txt: #006064; --sub: #0097a7; --border: #b2ebf2; --prim: #00bcd4; --acc: #4dd0e1; --danger: #ef5350; }
+    [data-theme="sunset"] { --bg: #2d1b2e; --surf: #44263e; --txt: #ffccbc; --sub: #ef9a9a; --border: #6d4c66; --prim: #ff7043; --acc: #ffab91; --danger: #ff5252; }
+    [data-theme="dracula"] { --bg: #282a36; --surf: #44475a; --txt: #f8f8f2; --sub: #6272a4; --border: #6272a4; --prim: #bd93f9; --acc: #ff79c6; --danger: #ff5555; }
+    [data-theme="solarized"] { --bg: #fdf6e3; --surf: #eee8d5; --txt: #657b83; --sub: #93a1a1; --border: #d33682; --prim: #2aa198; --acc: #268bd2; --danger: #cb4b16; }
+
+    /* --- RESET & BASE --- */
+    * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+    body { background: var(--bg); color: var(--txt); font-family: var(--font-main); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; transition: background var(--transition), color var(--transition); }
+    
+    /* --- LAYOUT STRUCTURE --- */
+    .app-container { flex: 1; display: flex; flex-direction: column; max-width: 800px; margin: 0 auto; width: 100%; position: relative; overflow: hidden; }
+    
+    .view-container { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 80px; display: none; opacity: 0; animation: fadeIn 0.3s forwards; }
+    .view-container.active { display: block; }
+    
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    /* --- NAVIGATION --- */
+    .nav-bar {
+        background: var(--surf); border-top: 1px solid var(--border);
+        display: flex; justify-content: space-around; padding: 12px 0;
+        position: fixed; bottom: 0; width: 100%; max-width: 800px; z-index: 10;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    }
+    .nav-item {
+        background: none; border: none; color: var(--sub); cursor: pointer;
+        font-size: 0.75rem; display: flex; flex-direction: column; align-items: center; gap: 4px;
+        transition: color 0.2s;
+    }
+    .nav-item svg { width: 24px; height: 24px; fill: currentColor; }
+    .nav-item.active { color: var(--prim); font-weight: 600; }
+
+    /* --- COMPONENTS: HEADER --- */
+    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+    h1 { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; }
+    .header-stats { text-align: right; font-size: 0.85rem; color: var(--sub); }
+    .limit-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; background: var(--border); font-size: 0.7rem; margin-top: 4px; }
+    .limit-badge.over { background: var(--danger); color: white; }
+
+    /* --- DASHBOARD: BUTTONS --- */
+    .log-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 30px; }
+    .log-btn {
+        background: var(--surf); border: 1px solid var(--border); color: var(--txt);
+        padding: 20px; border-radius: var(--radius); cursor: pointer;
+        display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+        transition: transform 0.1s, border-color 0.2s, box-shadow 0.2s;
+        box-shadow: var(--shadow); position: relative; overflow: hidden;
+    }
+    .log-btn:active { transform: scale(0.96); }
+    .log-btn:hover { border-color: var(--prim); }
+    .cat-color-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .cat-name { font-weight: 700; font-size: 1rem; }
+    .cat-count { font-size: 0.8rem; color: var(--sub); opacity: 0.8; }
+    
+    /* --- DASHBOARD: QUICK STATS --- */
+    .card { background: var(--surf); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+    .card h3 { margin: 0 0 15px 0; font-size: 1rem; color: var(--sub); text-transform: uppercase; letter-spacing: 1px; }
+
+    /* --- CHARTS (CSS ONLY) --- */
+    .bar-chart { display: flex; flex-direction: column; gap: 10px; }
+    .bar-row { display: flex; align-items: center; font-size: 0.85rem; }
+    .bar-label { width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-track { flex: 1; height: 8px; background: var(--border); margin: 0 10px; border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .bar-val { width: 30px; text-align: right; font-weight: 600; color: var(--sub); }
+
+    .trend-chart { display: flex; align-items: flex-end; justify-content: space-between; height: 120px; padding-top: 10px; gap: 6px; }
+    .trend-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .trend-bar { width: 100%; background: var(--prim); border-radius: 4px 4px 0 0; opacity: 0.8; transition: height 0.5s; min-height: 4px; }
+    .trend-bar:hover { opacity: 1; }
+    .trend-day { font-size: 0.7rem; color: var(--sub); }
+
+    /* --- TIMELINE --- */
+    .timeline-group { margin-bottom: 25px; }
+    .date-header { font-size: 0.85rem; font-weight: 700; color: var(--sub); border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    .log-entry { display: flex; align-items: center; background: var(--surf); padding: 12px; margin-bottom: 8px; border-radius: 8px; border: 1px solid var(--border); animation: fadeIn 0.3s; }
+    .log-time { font-family: var(--font-mono); font-size: 0.85rem; color: var(--sub); width: 60px; }
+    .log-info { flex: 1; }
+    .log-type { font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+    .log-note { font-size: 0.8rem; color: var(--sub); margin-top: 2px; }
+    .entry-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; opacity: 0.3; padding: 5px; }
+    .entry-btn:hover { opacity: 1; }
+
+    /* --- SETTINGS --- */
+    .setting-block { margin-bottom: 25px; }
+    .setting-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 10px; }
+    .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    input, select { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--txt); padding: 10px; border-radius: 8px; font-family: inherit; }
+    input[type="color"] { width: 50px; flex: none; padding: 2px; cursor: pointer; }
+    
+    .btn { background: var(--prim); color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; text-align: center; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--txt); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-full { width: 100%; }
+
+    /* --- TAGS IN SETTINGS --- */
+    .tag-container { display: flex; flex-wrap: wrap; gap: 8px; }
+    .edit-tag { display: flex; align-items: center; gap: 6px; background: var(--surf); border: 1px solid var(--border); padding: 5px 10px; border-radius: 20px; font-size: 0.85rem; }
+    .color-swatch { width: 12px; height: 12px; border-radius: 50%; }
+    .remove-x { color: var(--danger); cursor: pointer; font-weight: bold; margin-left: 5px; }
+
+    /* --- TOAST NOTIFICATION --- */
+    .toast {
+        position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-20px);
+        background: var(--txt); color: var(--bg); padding: 10px 20px; border-radius: 30px;
+        font-size: 0.9rem; font-weight: 600; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 1000;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 8px;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* RESPONSIVE */
+    @media (min-width: 801px) {
+        .nav-bar { width: 80px; height: 100vh; flex-direction: column; justify-content: flex-start; gap: 30px; padding-top: 30px; left: 0; bottom: auto; border-top: none; border-right: 1px solid var(--border); }
+        .app-container { margin-left: 80px; max-width: calc(100% - 80px); }
+        .log-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+    }
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div id="toast" class="toast"><span>Action Successful</span></div>
+
+<!-- NAV BAR -->
+<nav class="nav-bar">
+    <button class="nav-item active" onclick="switchView('dashboard')">
+        <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        <span>Dash</span>
+    </button>
+    <button class="nav-item" onclick="switchView('timeline')">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+        <span>Log</span>
+    </button>
+    <button class="nav-item" onclick="switchView('analytics')">
+        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+        <span>Stats</span>
+    </button>
+    <button class="nav-item" onclick="switchView('settings')">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L3.16 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.04.24.24.41.48.41h3.84c.24 0 .43-.17.47-.41l.36-2.54c.59-.24 1.13-.57 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        <span>Set</span>
+    </button>
+</nav>
+
+<div class="app-container">
+    
+    <!-- DASHBOARD -->
+    <div id="view-dashboard" class="view-container active">
+        <div class="header-row">
+            <h1>Ledger</h1>
+            <div class="header-stats">
+                <div id="dateDisplay"></div>
+                <div id="limitBadge" class="limit-badge">0 / 0</div>
+            </div>
+        </div>
+        
+        <div class="log-grid" id="categoryButtons">
+            <!-- Buttons injected here -->
+        </div>
+
+        <div class="card">
+            <h3>Focus Pulse (Today)</h3>
+            <div id="miniChart" class="bar-chart"></div>
+        </div>
+    </div>
+
+    <!-- TIMELINE -->
+    <div id="view-timeline" class="view-container">
+        <div class="header-row">
+            <h1>History</h1>
+            <button class="btn btn-outline" style="font-size:0.75rem; padding: 5px 10px;" onclick="renderTimeline()">Refresh</button>
+        </div>
+        <div id="timelineList"></div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div id="view-analytics" class="view-container">
+        <div class="header-row"><h1>Analytics</h1></div>
+        
+        <div class="card">
+            <h3>7-Day Trend</h3>
+            <div id="weekChart" class="trend-chart"></div>
+        </div>
+
+        <div class="card">
+            <h3>Top Distractions (All Time)</h3>
+            <div id="allTimeChart" class="bar-chart"></div>
+        </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="view-settings" class="view-container">
+        <div class="header-row"><h1>Settings</h1></div>
+
+        <div class="setting-block card">
+            <div class="setting-title">Appearance</div>
+            <div class="form-row">
+                <select id="themeSelector" onchange="updateTheme(this.value)">
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                    <option value="midnight">Midnight</option>
+                    <option value="forest">Forest</option>
+                    <option value="ocean">Ocean</option>
+                    <option value="sunset">Sunset</option>
+                    <option value="paper">Paper (Minimal)</option>
+                    <option value="hacker">Hacker</option>
+                    <option value="cyberpunk">Cyberpunk</option>
+                    <option value="nord">Nord</option>
+                    <option value="dracula">Dracula</option>
+                    <option value="solarized">Solarized</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="setting-block card">
+            <div class="setting-title">Daily Soft Limit (Goal)</div>
+            <div class="form-row">
+                <input type="number" id="limitInput" placeholder="e.g., 10" onchange="updateLimit(this.value)">
+            </div>
+            <small style="color:var(--sub)">UI will turn red if you exceed this count.</small>
+        </div>
+
+        <div class="setting-block card">
+            <div class="setting-title">Customize Categories</div>
+            <div class="form-row">
+                <input type="text" id="newCatName" placeholder="Name">
+                <input type="color" id="newCatColor" value="#0984e3">
+                <button class="btn" onclick="addCategory()">Add</button>
+            </div>
+            <div class="tag-container" id="categoryEditorList"></div>
+        </div>
+
+        <div class="setting-block card">
+            <div class="setting-title">Data Management</div>
+            <div class="form-row">
+                <button class="btn btn-outline btn-full" onclick="exportData()">Export (JSON)</button>
+                <button class="btn btn-outline btn-full" onclick="exportCSV()">Export (CSV)</button>
+            </div>
+            <div class="form-row">
+                <input type="file" id="importFile" style="display:none" onchange="importData(this)">
+                <button class="btn btn-outline btn-full" onclick="document.getElementById('importFile').click()">Import Backup</button>
+            </div>
+            <br>
+            <button class="btn btn-danger btn-full" onclick="wipeAllData()">Factory Reset</button>
+            <div style="text-align:center; margin-top:15px; font-size:0.75rem; color:var(--sub)">
+                Used: <span id="storageUsage">0</span> KB
+            </div>
+        </div>
+        
+        <div style="text-align: center; color: var(--sub); font-size: 0.8rem; padding: 20px;">
+            Made with ❤️ by Aliriyaj007 • v1.0.0
+        </div>
+    </div>
+
+</div>
+
+<script>
+    /* --- STATE --- */
+    const STORAGE_KEY = 'distraction_ledger_ult';
+    let data = {
+        logs: [],
+        categories: [
+            { id: 1, name: 'Phone', color: '#e17055' },
+            { id: 2, name: 'Social Media', color: '#0984e3' },
+            { id: 3, name: 'Email/Slack', color: '#fdcb6e' },
+            { id: 4, name: 'Wandering', color: '#6c5ce7' },
+            { id: 5, name: 'Noise', color: '#00b894' },
+            { id: 6, name: 'Other', color: '#636e72' }
+        ],
+        settings: {
+            theme: 'light',
+            dailyLimit: 15
+        }
+    };
+
+    /* --- INIT --- */
+    document.addEventListener('DOMContentLoaded', () => {
+        loadData();
+        applyTheme();
+        renderDashboard();
+        updateLimitUI();
+        calcStorage();
+        
+        // Initial setup for inputs
+        document.getElementById('themeSelector').value = data.settings.theme;
+        document.getElementById('limitInput').value = data.settings.dailyLimit;
+    });
+
+    /* --- NAVIGATION --- */
+    function switchView(viewName) {
+        document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
+        document.getElementById(`view-${viewName}`).classList.add('active');
+        
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        // Find button based on onclick attribute (simple hack)
+        const btns = document.querySelectorAll('.nav-item');
+        if(viewName === 'dashboard') btns[0].classList.add('active');
+        if(viewName === 'timeline') { btns[1].classList.add('active'); renderTimeline(); }
+        if(viewName === 'analytics') { btns[2].classList.add('active'); renderAnalytics(); }
+        if(viewName === 'settings') { btns[3].classList.add('active'); renderSettings(); }
+    }
+
+    /* --- CORE LOGIC --- */
+    function log(catName) {
+        const cat = data.categories.find(c => c.name === catName) || { color: '#888' };
+        data.logs.unshift({
+            id: Date.now(),
+            type: catName,
+            color: cat.color,
+            ts: new Date().toISOString(),
+            note: ''
+        });
+        save();
+        showToast(`Logged: ${catName}`);
+        renderDashboard();
+    }
+
+    function addNote(id) {
+        const log = data.logs.find(l => l.id === id);
+        if(log) {
+            const txt = prompt("Add Context/Note:", log.note);
+            if(txt !== null) {
+                log.note = txt;
+                save();
+                renderTimeline();
+            }
+        }
+    }
+
+    function deleteLog(id) {
+        if(confirm("Remove this entry?")) {
+            data.logs = data.logs.filter(l => l.id !== id);
+            save();
+            renderTimeline();
+            showToast("Entry deleted");
+        }
+    }
+
+    /* --- RENDERING: DASHBOARD --- */
+    function renderDashboard() {
+        // Date
+        const now = new Date();
+        document.getElementById('dateDisplay').textContent = now.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'});
+
+        // Buttons
+        const grid = document.getElementById('categoryButtons');
+        grid.innerHTML = '';
+        
+        // Get today's counts for badges
+        const todayStr = now.toDateString();
+        const todayLogs = data.logs.filter(l => new Date(l.ts).toDateString() === todayStr);
+        const counts = {};
+        todayLogs.forEach(l => counts[l.type] = (counts[l.type]||0)+1);
+
+        data.categories.forEach(cat => {
+            const btn = document.createElement('div');
+            btn.className = 'log-btn';
+            btn.onclick = () => log(cat.name);
+            btn.innerHTML = `
+                <div class="cat-color-dot" style="background:${cat.color}"></div>
+                <div class="cat-name">${cat.name}</div>
+                <div class="cat-count">${counts[cat.name] || 0} today</div>
+            `;
+            grid.appendChild(btn);
+        });
+
+        // Limit Badge
+        const limit = data.settings.dailyLimit || 0;
+        const total = todayLogs.length;
+        const badge = document.getElementById('limitBadge');
+        badge.textContent = `${total} / ${limit}`;
+        badge.className = total > limit ? 'limit-badge over' : 'limit-badge';
+
+        // Mini Chart
+        renderBarChart(todayLogs, 'miniChart', true);
+    }
+
+    /* --- RENDERING: TIMELINE --- */
+    function renderTimeline() {
+        const container = document.getElementById('timelineList');
+        container.innerHTML = '';
+        
+        if(data.logs.length === 0) {
+            container.innerHTML = '<div style="text-align:center;color:var(--sub);padding:20px;">No history yet.</div>';
+            return;
+        }
+
+        // Group by Date
+        const grouped = {};
+        data.logs.forEach(l => {
+            const d = new Date(l.ts).toLocaleDateString();
+            if(!grouped[d]) grouped[d] = [];
+            grouped[d].push(l);
+        });
+
+        Object.keys(grouped).forEach(date => {
+            const group = document.createElement('div');
+            group.className = 'timeline-group';
+            
+            const head = document.createElement('div');
+            head.className = 'date-header';
+            head.innerHTML = `<span>${date}</span> <span>${grouped[date].length}</span>`;
+            group.appendChild(head);
+
+            grouped[date].forEach(l => {
+                const time = new Date(l.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                const div = document.createElement('div');
+                div.className = 'log-entry';
+                div.innerHTML = `
+                    <div class="log-time">${time}</div>
+                    <div class="log-info">
+                        <div class="log-type">
+                            <span class="cat-color-dot" style="background:${l.color||'var(--sub)'}"></span>
+                            ${l.type}
+                        </div>
+                        <div class="log-note">${l.note || ''}</div>
+                    </div>
+                    <button class="entry-btn" onclick="addNote(${l.id})">✎</button>
+                    <button class="entry-btn" style="color:var(--danger)" onclick="deleteLog(${l.id})">×</button>
+                `;
+                group.appendChild(div);
+            });
+            container.appendChild(group);
+        });
+    }
+
+    /* --- RENDERING: ANALYTICS --- */
+    function renderAnalytics() {
+        // Week Chart
+        const weekContainer = document.getElementById('weekChart');
+        weekContainer.innerHTML = '';
+        const weekMap = {};
+        // Init last 7 days
+        for(let i=6; i>=0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            weekMap[d.toLocaleDateString()] = { count: 0, day: d.toLocaleDateString(undefined, {weekday:'narrow'}) };
+        }
+        
+        data.logs.forEach(l => {
+            const d = new Date(l.ts).toLocaleDateString();
+            if(weekMap[d]) weekMap[d].count++;
+        });
+
+        const maxVal = Math.max(...Object.values(weekMap).map(o=>o.count), 5); // min 5 for scale
+
+        Object.keys(weekMap).forEach(k => {
+            const item = weekMap[k];
+            const pct = (item.count / maxVal) * 100;
+            const col = document.createElement('div');
+            col.className = 'trend-col';
+            col.innerHTML = `
+                <div class="trend-bar" style="height:${pct}%;" title="${item.count}"></div>
+                <div class="trend-day">${item.day}</div>
+            `;
+            weekContainer.appendChild(col);
+        });
+
+        // All Time Chart
+        renderBarChart(data.logs, 'allTimeChart', false);
+    }
+
+    /* --- CHART HELPER --- */
+    function renderBarChart(logArray, targetId, useColors) {
+        const el = document.getElementById(targetId);
+        el.innerHTML = '';
+        
+        if(logArray.length === 0) {
+            el.innerHTML = '<small style="color:var(--sub)">No data available.</small>';
+            return;
+        }
+
+        const counts = {};
+        logArray.forEach(l => counts[l.type] = (counts[l.type]||0)+1);
+        
+        const sorted = Object.keys(counts).sort((a,b) => counts[b] - counts[a]).slice(0, 5); // Top 5
+        const max = counts[sorted[0]];
+
+        sorted.forEach(type => {
+            const count = counts[type];
+            const pct = (count / max) * 100;
+            const catObj = data.categories.find(c => c.name === type);
+            const color = (useColors && catObj) ? catObj.color : 'var(--prim)';
+            
+            const row = document.createElement('div');
+            row.className = 'bar-row';
+            row.innerHTML = `
+                <div class="bar-label">${type}</div>
+                <div class="bar-track"><div class="bar-fill" style="width:${pct}%; background:${color}"></div></div>
+                <div class="bar-val">${count}</div>
+            `;
+            el.appendChild(row);
+        });
+    }
+
+    /* --- SETTINGS: CATEGORIES --- */
+    function renderSettings() {
+        const list = document.getElementById('categoryEditorList');
+        list.innerHTML = '';
+        data.categories.forEach(cat => {
+            const tag = document.createElement('div');
+            tag.className = 'edit-tag';
+            tag.innerHTML = `
+                <div class="color-swatch" style="background:${cat.color}"></div>
+                ${cat.name}
+                <span class="remove-x" onclick="removeCategory(${cat.id})">×</span>
+            `;
+            list.appendChild(tag);
+        });
+    }
+
+    function addCategory() {
+        const nameInput = document.getElementById('newCatName');
+        const colInput = document.getElementById('newCatColor');
+        const name = nameInput.value.trim();
+        
+        if(name) {
+            data.categories.push({
+                id: Date.now(),
+                name: name,
+                color: colInput.value
+            });
+            nameInput.value = '';
+            save();
+            renderSettings();
+            showToast('Category Added');
+        }
+    }
+
+    function removeCategory(id) {
+        if(data.categories.length <= 1) {
+            alert("You need at least one category.");
+            return;
+        }
+        if(confirm("Remove this button? (Logs remain)")) {
+            data.categories = data.categories.filter(c => c.id !== id);
+            save();
+            renderSettings();
+        }
+    }
+
+    /* --- SETTINGS: THEMES & DATA --- */
+    function updateTheme(val) {
+        data.settings.theme = val;
+        save();
+        applyTheme();
+    }
+
+    function applyTheme() {
+        document.body.setAttribute('data-theme', data.settings.theme);
+        // Meta theme color for mobile browsers
+        // (Simple check for dark themes to set nav bar color)
+        const isDark = ['dark','midnight','hacker','nord','dracula','sunset','cyberpunk'].includes(data.settings.theme);
+        // This is a UI nicety, not strictly necessary, but good for "Ultimate" feel
+    }
+
+    function updateLimit(val) {
+        data.settings.dailyLimit = parseInt(val);
+        save();
+        updateLimitUI();
+    }
+    
+    function updateLimitUI() {
+        document.getElementById('limitInput').value = data.settings.dailyLimit;
+    }
+
+    /* --- DATA STORAGE & IO --- */
+    function save() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        calcStorage();
+    }
+
+    function loadData() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(raw) {
+            const parsed = JSON.parse(raw);
+            // Deep merge safety to prevent crashes on updates
+            data.logs = parsed.logs || [];
+            if(parsed.categories) data.categories = parsed.categories;
+            if(parsed.settings) data.settings = {...data.settings, ...parsed.settings};
+        }
+    }
+
+    function calcStorage() {
+        const kb = (new Blob([localStorage.getItem(STORAGE_KEY)]).size / 1024).toFixed(2);
+        document.getElementById('storageUsage').textContent = kb;
+    }
+
+    function wipeAllData() {
+        if(confirm("WARNING: This will delete EVERYTHING. Categories, Logs, Settings.\n\nAre you sure?")) {
+            localStorage.removeItem(STORAGE_KEY);
+            location.reload();
+        }
+    }
+
+    function exportData() {
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `distraction_ledger_backup_${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    function exportCSV() {
+        let csv = "ID,Date,Time,Category,Note\n";
+        data.logs.forEach(l => {
+            const d = new Date(l.ts);
+            const noteClean = (l.note || "").replace(/"/g, '""');
+            csv += `${l.id},"${d.toLocaleDateString()}","${d.toLocaleTimeString()}","${l.type}","${noteClean}"\n`;
+        });
+        const blob = new Blob([csv], {type: 'text/csv'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `distraction_ledger_data.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    function importData(input) {
+        const f = input.files[0];
+        if(!f) return;
+        const r = new FileReader();
+        r.onload = e => {
+            try {
+                const json = JSON.parse(e.target.result);
+                if(json.logs && Array.isArray(json.logs)) {
+                    if(confirm("Overwrite current data with this backup?")) {
+                        data = json;
+                        save();
+                        location.reload();
+                    }
+                } else alert("Invalid file format");
+            } catch(x) { alert("Error reading file"); }
+        };
+        r.readAsText(f);
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.firstChild.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
+</script>
+</body>
+</html>
