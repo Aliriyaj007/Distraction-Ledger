@@ -58,7 +58,7 @@ Simply visit the GitHub Pages link. The app caches itself and works offline afte
 > **[Open Distraction Ledger](https://aliriyaj007.github.io/Distraction-Ledger/)**
 
 ### Method 2: Local File (Privacy Max)
-1.  Download the `index.html` file from the [Releases](https://github.com/Aliriyaj007/Distraction-Ledger/releases) page.
+1.  Download the `index.html`.
 2.  Disconnect from the internet (optional).
 3.  Open `index.html` in Chrome, Firefox, Safari, or Edge.
 
